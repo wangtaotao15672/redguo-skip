@@ -18,8 +18,54 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Gradle 8.5
+        run: |
+          wget -q https://services.gradle.org/distributions/gradle-8.5-bin.zip -O /tmp/gradle.zip
+          unzip -q /tmp/gradle.zip -d /opt
+          echo "/opt/gradle-8.5/bin" >> $GITHUB_PATH
+
+      - name: Point Gradle at Tencent mirror (avoids dl.google.com)
+        run: |
+          mkdir -p ~/.gradle
+          cat > ~/.gradle/init.gradle.kts <<'EOF'
+          // 重写所有仓库,流量走腾讯云 Maven 镜像
+          allprojects {
+              buildscript {
+                  repositories {
+                      clear()
+                      maven { url = uri("https://mirrors.cloud.tencent.com/nexus/repository/maven-public/") }
+                  }
+              }
+              repositories {
+                  clear()
+                  maven { url = uri("https://mirrors.cloud.tencent.com/nexus/repository/maven-public/") }
+              }
+          }
+          settingsEvaluated {
+              pluginManagement {
+                  repositories {
+                      clear()
+                      maven { url = uri("https://mirrors.cloud.tencent.com/nexus/repository/maven-public/") }
+                  }
+              }
+          }
+          EOF
+
       - name: Build debug APK
-        run: ./gradlew assembleDebug
+        run: |
+          export PATH="/opt/gradle-8.5/bin:$PATH"
+          gradle assembleDebug --no-daemon --warning-mode=summary --stacktrace
+
+      - name: Show APK location
+        if: always()
+        run: |
+          echo "APK listing:"
+          find . -name '*.apk' -not -path '*/build/intermediates/*' 2>/dev/null
+          echo "build dir:"
+          ls -la app/build/outputs/apk/ 2>/dev/null || true
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
