@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">红果跳广告</string>
+    <string name="service_label">红果广告自动跳过</string>
+    <string name="service_description">当红果短剧播放完广告、回到视频内容时,自动上滑切换下一个视频。本应用不联网。</string>
+
+    <string name="status_service_off">无障碍服务:未开启</string>
+    <string name="status_service_on">无障碍服务:运行中</string>
+
+    <string name="action_open_settings">前往开启无障碍服务</string>
+    <string name="action_grant_usage">授予"查看应用使用情况"(用于识别前台 App)</string>
+
+    <string name="section_runtime">运行</string>
+    <string name="section_privacy">隐私 / 网络</string>
+    <string name="section_update">更新</string>
+
+    <string name="label_network_off">当前:完全离线运行(推荐)</string>
+    <string name="label_network_on">当前:允许联网检查更新</string>
+    <string name="toggle_allow_network">允许联网(仅用于检查更新)</string>
+
+    <string name="label_auto_swipe">广告结束后自动上滑切换下一个</string>
+    <string name="label_swipe_delay">等待视频可操作后再滑动(毫秒)</string>
+
+    <string name="action_check_update">立即检查更新</string>
+    <string name="hint_check_update">开启联网后可用。返回的版本号 / 下载链接仅本地展示,不主动下载安装。</string>
+
+    <string name="msg_checking">正在检查更新…</string>
+    <string name="msg_offline">当前离线,无法检查更新</string>
+    <string name="msg_up_to_date">已是最新版本</string>
+    <string name="msg_new_version_found">发现新版本:%1$s(当前 %2$s)</string>
+    <string name="msg_update_failed">检查更新失败:%1$s</string>
+    <string name="msg_update_url">下载链接:%1$s</string>
+
+    <string name="hint_root_explain">
+        本应用原理:通过 Android 无障碍服务读取当前屏幕的文本/控件,判断红果短剧是否处于"广告播放中"。广告结束、回到视频内容时,自动模拟一次上滑手势,跳到下一集。
+        \n\n整个过程不读取你的账号、播放记录或任何网络数据,默认完全离线运行。只有当你主动打开"允许联网"并点击"立即检查更新"时,本应用才会向一个写死的版本地址发起一次 HTTPS 请求。
+    </string>
+</resources>
