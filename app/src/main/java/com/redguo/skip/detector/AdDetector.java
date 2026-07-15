@@ -28,6 +28,26 @@ public final class AdDetector {
             "下一集", "全集", "播放"
     };
 
+    // 「广告结束、请上滑」过渡提示文案。红果短剧 / 抖音类 App 在广告结束后
+    // 会出现一个独立的「上滑继续观看」层,这层往往不在 AccessibilityNodeInfo 树里
+    // (动画层 / 自绘 View),所以用 screenText 不一定能拿到——但万一抓到了,
+    // 就直接当广告结束,不必死等广告文案彻底消失。
+    private static final String[] AD_FINISHED_PROMPTS = {
+            "上滑", "继续观看", "下一集", "短剧"
+    };
+
+    /**
+     * 是否检测到「广告结束、请上滑」过渡提示。
+     * 返回 true 时,调用方应直接走 swipe 路径,不必再等广告文案消失。
+     */
+    public boolean hasAdFinishedPrompt(String screenText) {
+        if (screenText == null || screenText.isEmpty()) return false;
+        for (String kw : AD_FINISHED_PROMPTS) {
+            if (screenText.contains(kw)) return true;
+        }
+        return false;
+    }
+
     // 目标 App 包名前缀(以 isTargetPackage 的 startsWith 判定)
     private static final String[] TARGET_PACKAGES = {
             "com.phoenix.read"

@@ -94,6 +94,7 @@ public class AdSkipAccessibilityService extends AccessibilityService {
 
         boolean adOn = detector.isAdScreen(screenText);
         boolean videoOn = detector.isVideoContentScreen(screenText);
+        boolean promptOn = detector.hasAdFinishedPrompt(screenText);
         int adCountdown = detector.parseAdCountdownSeconds(screenText);
 
         switch (state) {
@@ -102,13 +103,20 @@ public class AdSkipAccessibilityService extends AccessibilityService {
                     Log.i(TAG, "ad started | countdown=" + adCountdown
                             + "s | text=\"" + truncate(screenText, 200) + "\"");
                     state = State.IN_AD;
+                } else if (promptOn) {
+                    // 没识别到广告文案,但「上滑继续观看」过渡提示已出现 → 直接 swipe
+                    Log.i(TAG, "swipe prompt detected in IDLE, trigger swipe | text=\""
+                            + truncate(screenText, 200) + "\"");
+                    state = State.WAITING_BUFFER;
+                    scheduleSwipeIfNeeded();
                 }
                 break;
 
             case IN_AD:
-                if (!adOn && videoOn) {
-                    Log.i(TAG, "ad finished, back to video content | text=\""
-                            + truncate(screenText, 200) + "\"");
+                if ((!adOn && videoOn) || promptOn) {
+                    Log.i(TAG, "ad finished, back to video content"
+                            + (promptOn ? " (by prompt)" : "")
+                            + " | text=\"" + truncate(screenText, 200) + "\"");
                     state = State.WAITING_BUFFER;
                     scheduleSwipeIfNeeded();
                 }
