@@ -75,9 +75,9 @@ adb install app/build/outputs/apk/debug/app-debug.apk
 - **最小权限**:只申请 `INTERNET`、`ACCESS_NETWORK_STATE`,不申请存储/电话/位置/相机等敏感权限
 - **白名单包名**:无障碍服务只对写死的几个红果相关包名触发,其它 App 一律忽略
 
-## 替换默认包名
+## 切换目标 App
 
-`AdDetector.TARGET_PACKAGES` 是占位值,请按需替换为红果短剧实际的包名(可通过 `adb shell dumpsys window | grep mCurrentFocus` 拿到)。
+`AdDetector.TARGET_PACKAGES` 当前是 `com.phoenix.read`(以 `startsWith` 判定)。如果要换到其它 App,改成对应包名前缀即可,可通过 `adb shell dumpsys window | grep mCurrentFocus` 拿到。
 
 ## 后续可扩展点
 

@@ -28,11 +28,9 @@ public final class AdDetector {
             "下一集", "全集", "播放"
     };
 
-    // 红果短剧相关包名(随时可能改,作为粗筛)
+    // 目标 App 包名前缀(以 isTargetPackage 的 startsWith 判定)
     private static final String[] TARGET_PACKAGES = {
-            "com.redguy.shortplay",   // 占位,实际以用户填写为准
-            "com.hongguo.shortplay",
-            "com.redguo"
+            "com.phoenix.read"
     };
 
     /** 只对红果相关的包做分析,其它 App 一律忽略。 */
