@@ -56,6 +56,14 @@ public class AdSkipAccessibilityService extends AccessibilityService {
     /** 上一次记过日志的前台包名,用于切换 app 时打一次,避免每个 touch 都刷屏。 */
     @Nullable private String lastLoggedPkg;
 
+    /**
+     * 单例主线程 Handler。绝对不要在 schedule/cancel 里 new Handler,
+     * 否则多个 Handler 共享同一个 Looper 时 removeCallbacks 会有 race,
+     * 旧 Runnable 漏网,1ms 内派出多个 swipe。
+     */
+    private final android.os.Handler mainHandler =
+            new android.os.Handler(android.os.Looper.getMainLooper());
+
     @Override
     public void onServiceConnected() {
         super.onServiceConnected();
@@ -198,9 +206,8 @@ public class AdSkipAccessibilityService extends AccessibilityService {
             return;
         }
         if (swipeInFlight.get()) return;
-
-        // 取消上一次还没执行的延迟任务(防止状态抖动时重复入队)
-        cancelPendingSwipe();
+        // 已有 pending 任务在排队,不要再排新的(修 v5 的 1ms 派发 3 个 bug)
+        if (pendingSwipe != null) return;
 
         int delayMs = AppConfig.get(this).getSwipeDelayMs();
         Runnable task = () -> {
@@ -211,23 +218,21 @@ public class AdSkipAccessibilityService extends AccessibilityService {
                     swipeInFlight.set(false);
                     state = State.IDLE;
                     swipeCommitted = false;  // 解锁,允许下一个广告周期
+                    pendingSwipe = null;     // 清掉,下一次可以再排
                     Log.i(TAG, "swipe done, back to IDLE");
                 });
             }
         };
         pendingSwipe = task;
-        getMainThreadHandler().postDelayed(task, delayMs);
-    }
-
-    /** 拿到主线程 Handler,统一在 UI 线程上 post swipe 任务。 */
-    private android.os.Handler getMainThreadHandler() {
-        return new android.os.Handler(android.os.Looper.getMainLooper());
+        mainHandler.postDelayed(task, delayMs);
+        Log.i(TAG, "swipe scheduled in " + delayMs + "ms");
     }
 
     private void cancelPendingSwipe() {
         if (pendingSwipe != null) {
-            getMainThreadHandler().removeCallbacks(pendingSwipe);
+            mainHandler.removeCallbacks(pendingSwipe);
             pendingSwipe = null;
+            Log.i(TAG, "pending swipe cancelled");
         }
     }
 

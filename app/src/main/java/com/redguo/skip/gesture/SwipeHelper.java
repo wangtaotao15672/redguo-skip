@@ -28,8 +28,8 @@ public final class SwipeHelper {
     private SwipeHelper() {}
 
     /**
-     * 在屏幕中央执行一次快速上滑:从屏幕 75% 高度 → 25% 高度,耗时 250ms。
-     * 这是红果 / 抖音类短视频切换下一集的常用手势幅度。
+     * 在屏幕中央执行一次快速上滑:从屏幕 90% 高度 → 10% 高度,耗时 180ms。
+     * 更大的幅度 + 更短的时间,更像"flick"手势,被视频类 App 识别为"切下一集"的概率更高。
      */
     @RequiresApi(Build.VERSION_CODES.N)
     public static void swipeUp(AccessibilityService svc, Runnable onDone) {
@@ -40,13 +40,13 @@ public final class SwipeHelper {
 
         Path path = new Path();
         float x = w / 2f;
-        float yStart = h * 0.75f;
-        float yEnd   = h * 0.25f;
+        float yStart = h * 0.90f;
+        float yEnd   = h * 0.10f;
         path.moveTo(x, yStart);
         path.lineTo(x, yEnd);
 
         GestureDescription.StrokeDescription stroke =
-                new GestureDescription.StrokeDescription(path, 0L, 250L, true);
+                new GestureDescription.StrokeDescription(path, 0L, 180L, true);
 
         GestureDescription gd = new GestureDescription.Builder()
                 .addStroke(stroke)
