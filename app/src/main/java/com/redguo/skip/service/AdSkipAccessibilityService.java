@@ -6,6 +6,7 @@ import android.os.Build;
 import android.util.Log;
 import android.view.accessibility.AccessibilityEvent;
 import android.view.accessibility.AccessibilityNodeInfo;
+import android.view.accessibility.AccessibilityWindowInfo;
 
 import androidx.annotation.Nullable;
 
@@ -87,10 +88,11 @@ public class AdSkipAccessibilityService extends AccessibilityService {
             return;
         }
 
-        // 取根节点 → 提取屏幕文本
-        AccessibilityNodeInfo root = getRootInActiveWindow();
-        if (root == null) return;
-        String screenText = detector.collectScreenText(root);
+        // 收所有窗口的文本(主活动窗口 + 系统覆盖 / 弹窗 / 独立 Window)
+        // 红果短剧广告结束后的「上滑继续观看短剧」提示层可能挂在独立 Window 上,
+        // 单看 getRootInActiveWindow() 抓不到。
+        String screenText = collectAllWindowsText();
+        if (screenText.isEmpty()) return;
 
         boolean adOn = detector.isAdScreen(screenText);
         boolean videoOn = detector.isVideoContentScreen(screenText);
@@ -146,6 +148,31 @@ public class AdSkipAccessibilityService extends AccessibilityService {
     private static String truncate(String s, int n) {
         if (s == null) return "";
         return s.length() > n ? s.substring(0, n) + "...(+" + (s.length() - n) + " chars)" : s;
+    }
+
+    /**
+     * 合并当前所有 Window(主活动窗口 + 系统覆盖 / 弹窗 / 独立 Window)的文本。
+     * 一些 App(尤其是带自绘 View 或悬浮层的)会把关键提示挂在独立 Window 里,
+     * 只看 getRootInActiveWindow() 会漏。
+     */
+    private String collectAllWindowsText() {
+        StringBuilder sb = new StringBuilder(2048);
+        java.util.HashSet<AccessibilityNodeInfo> seen = new java.util.HashSet<>();
+
+        AccessibilityNodeInfo mainRoot = getRootInActiveWindow();
+        if (mainRoot != null) {
+            detector.appendScreenText(mainRoot, sb);
+            seen.add(mainRoot);
+        }
+
+        for (AccessibilityWindowInfo win : getWindows()) {
+            if (win == null) continue;
+            AccessibilityNodeInfo root = win.getRoot();
+            if (root == null || seen.contains(root)) continue;
+            detector.appendScreenText(root, sb);
+            seen.add(root);
+        }
+        return sb.toString();
     }
 
     private void scheduleSwipeIfNeeded() {

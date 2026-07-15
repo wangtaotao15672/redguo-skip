@@ -73,6 +73,16 @@ public final class AdDetector {
         return sb.toString();
     }
 
+    /**
+     * 把某个窗口的文本追加到现有 StringBuilder。
+     * 用于「遍历所有 AccessibilityWindowInfo,合并文本」这种场景,
+     * 避免为每个窗口都 new 一个 StringBuilder。
+     */
+    public void appendScreenText(AccessibilityNodeInfo root, StringBuilder sb) {
+        if (root == null || sb == null) return;
+        collect(root, sb);
+    }
+
     private void collect(AccessibilityNodeInfo node, StringBuilder sb) {
         if (node == null) return;
         CharSequence t = node.getText();
