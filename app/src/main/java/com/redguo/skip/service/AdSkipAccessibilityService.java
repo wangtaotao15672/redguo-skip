@@ -143,6 +143,11 @@ public class AdSkipAccessibilityService extends AccessibilityService {
         getMainThreadHandler().postDelayed(task, delayMs);
     }
 
+    /** 拿到主线程 Handler,统一在 UI 线程上 post swipe 任务。 */
+    private android.os.Handler getMainThreadHandler() {
+        return new android.os.Handler(android.os.Looper.getMainLooper());
+    }
+
     private void cancelPendingSwipe() {
         if (pendingSwipe != null) {
             getMainThreadHandler().removeCallbacks(pendingSwipe);

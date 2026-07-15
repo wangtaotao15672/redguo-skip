@@ -6,6 +6,11 @@ android {
     namespace 'com.redguo.skip'
     compileSdk 34
 
+    buildFeatures {
+        // 让 AGP 生成 com.redguo.skip.BuildConfig,版本号显示和 switch 逻辑要读
+        buildConfig true
+    }
+
     defaultConfig {
         applicationId "com.redguo.skip"
         minSdk 24        // Android 7.0,覆盖 95%+ 设备
