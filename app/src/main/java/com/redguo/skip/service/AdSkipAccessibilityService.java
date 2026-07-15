@@ -42,6 +42,14 @@ public class AdSkipAccessibilityService extends AccessibilityService {
     private volatile State state = State.IDLE;
     private final AtomicBoolean swipeInFlight = new AtomicBoolean(false);
 
+    /**
+     * 一旦识别到「广告结束提示(上滑/继续观看)」并决定 swipe,就置 true。
+     * 在 WAITING_BUFFER 期间,即使屏幕文本里残留 "广告" 关键词,
+     * 也不再回滚到 IN_AD,避免反复 cancel pending swipe 导致 swipe 永远派不出去。
+     * swipe 真正完成(completed 或 cancelled)后重置为 false。
+     */
+    private volatile boolean swipeCommitted = false;
+
     /** 上一次派发滑动的延迟任务,用于状态被打断时取消。 */
     @Nullable private Runnable pendingSwipe;
 
@@ -61,12 +69,14 @@ public class AdSkipAccessibilityService extends AccessibilityService {
     @Override
     public void onDestroy() {
         state = State.IDLE;
+        swipeCommitted = false;
         super.onDestroy();
     }
 
     @Override
     public void onInterrupt() {
         state = State.IDLE;
+        swipeCommitted = false;
     }
 
     @Override
@@ -110,6 +120,7 @@ public class AdSkipAccessibilityService extends AccessibilityService {
                     Log.i(TAG, "swipe prompt detected in IDLE, trigger swipe | text=\""
                             + truncate(screenText, 200) + "\"");
                     state = State.WAITING_BUFFER;
+                    swipeCommitted = true;  // 锁住,避免 ad 残留把 swipe 撤了
                     scheduleSwipeIfNeeded();
                 }
                 break;
@@ -120,13 +131,19 @@ public class AdSkipAccessibilityService extends AccessibilityService {
                             + (promptOn ? " (by prompt)" : "")
                             + " | text=\"" + truncate(screenText, 200) + "\"");
                     state = State.WAITING_BUFFER;
+                    if (promptOn) swipeCommitted = true;  // 锁住:不让 adOn 残留把 swipe 撤了
                     scheduleSwipeIfNeeded();
                 }
                 break;
 
             case WAITING_BUFFER:
-                // 期间若又出现广告,回到 IN_AD(广告套广告的情况)
-                if (adOn) {
+                if (swipeCommitted) {
+                    // 已经决定 swipe,即使 ad 关键词残留也保持 WAITING_BUFFER 等 swipe 完成
+                    if (!videoOn) {
+                        Log.d(TAG, "page transitioning, hold for committed swipe");
+                    }
+                } else if (adOn) {
+                    // 期间若又出现广告,回到 IN_AD(广告套广告的情况)
                     Log.i(TAG, "nested ad detected, fall back to IN_AD");
                     cancelPendingSwipe();
                     state = State.IN_AD;
@@ -193,6 +210,7 @@ public class AdSkipAccessibilityService extends AccessibilityService {
                 SwipeHelper.swipeUp(this, () -> {
                     swipeInFlight.set(false);
                     state = State.IDLE;
+                    swipeCommitted = false;  // 解锁,允许下一个广告周期
                     Log.i(TAG, "swipe done, back to IDLE");
                 });
             }
