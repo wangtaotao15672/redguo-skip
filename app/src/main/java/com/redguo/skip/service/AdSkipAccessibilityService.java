@@ -36,11 +36,20 @@ public class AdSkipAccessibilityService extends AccessibilityService {
 
     private static final String TAG = "RedGuoSkip";
 
+    /** swipe 完成后,多少毫秒内不再触发新 swipe(防 feed 流死循环) */
+    private static final long SWIPE_COOLDOWN_MS = 3_000L;
+
     private enum State { IDLE, IN_AD, WAITING_BUFFER, SWIPING }
 
     private final AdDetector detector = new AdDetector();
     private volatile State state = State.IDLE;
     private final AtomicBoolean swipeInFlight = new AtomicBoolean(false);
+
+    /**
+     * 上次 swipe 完成时刻(elapsedRealtime 毫秒)。用作"刚滑完 N 秒内别再派新 swipe"
+     * 的冷却,避免在 feed / 视频流卡片里误触发「上滑」造成死循环。
+     */
+    private volatile long lastSwipeCompletedAt = 0L;
 
     /**
      * 一旦识别到「广告结束提示(上滑/继续观看)」并决定 swipe,就置 true。
@@ -208,6 +217,12 @@ public class AdSkipAccessibilityService extends AccessibilityService {
         if (swipeInFlight.get()) return;
         // 已有 pending 任务在排队,不要再排新的(修 v5 的 1ms 派发 3 个 bug)
         if (pendingSwipe != null) return;
+        // 刚滑完 N 秒内不再派新 swipe,防止启发式误判在 feed 流里持续触发
+        long sinceLast = android.os.SystemClock.elapsedRealtime() - lastSwipeCompletedAt;
+        if (lastSwipeCompletedAt != 0 && sinceLast < SWIPE_COOLDOWN_MS) {
+            Log.d(TAG, "swipe cooldown " + (SWIPE_COOLDOWN_MS - sinceLast) + "ms remaining");
+            return;
+        }
 
         int delayMs = AppConfig.get(this).getSwipeDelayMs();
         Runnable task = () -> {
@@ -219,6 +234,7 @@ public class AdSkipAccessibilityService extends AccessibilityService {
                     state = State.IDLE;
                     swipeCommitted = false;  // 解锁,允许下一个广告周期
                     pendingSwipe = null;     // 清掉,下一次可以再排
+                    lastSwipeCompletedAt = android.os.SystemClock.elapsedRealtime();
                     Log.i(TAG, "swipe done, back to IDLE");
                 });
             }
