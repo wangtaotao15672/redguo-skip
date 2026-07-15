@@ -44,11 +44,17 @@ public class AdSkipAccessibilityService extends AccessibilityService {
     /** 上一次派发滑动的延迟任务,用于状态被打断时取消。 */
     @Nullable private Runnable pendingSwipe;
 
+    /** 上一次记过日志的前台包名,用于切换 app 时打一次,避免每个 touch 都刷屏。 */
+    @Nullable private String lastLoggedPkg;
+
     @Override
     public void onServiceConnected() {
         super.onServiceConnected();
         state = State.IDLE;
-        Log.i(TAG, "service connected");
+        AppConfig cfg = AppConfig.get(this);
+        Log.i(TAG, "service connected | autoSwipe=" + cfg.isAutoSwipeEnabled()
+                + " delayMs=" + cfg.getSwipeDelayMs()
+                + " allowNetwork=" + cfg.isNetworkAllowed());
     }
 
     @Override
@@ -67,8 +73,16 @@ public class AdSkipAccessibilityService extends AccessibilityService {
         if (event == null) return;
         CharSequence pkg = event.getPackageName();
         if (pkg == null) return;
-        if (!detector.isTargetPackage(pkg.toString())) {
-            // 离开红果 → 复位
+        String pkgStr = pkg.toString();
+
+        // 前台 app 切换时打一次,用来确认白名单是否命中
+        if (!pkgStr.equals(lastLoggedPkg)) {
+            lastLoggedPkg = pkgStr;
+            Log.i(TAG, "fg pkg = " + pkgStr + " | whitelist hit = " + detector.isTargetPackage(pkgStr));
+        }
+
+        if (!detector.isTargetPackage(pkgStr)) {
+            // 离开目标 App → 复位
             if (state != State.IDLE) state = State.IDLE;
             return;
         }
@@ -80,18 +94,21 @@ public class AdSkipAccessibilityService extends AccessibilityService {
 
         boolean adOn = detector.isAdScreen(screenText);
         boolean videoOn = detector.isVideoContentScreen(screenText);
+        int adCountdown = detector.parseAdCountdownSeconds(screenText);
 
         switch (state) {
             case IDLE:
                 if (adOn) {
-                    Log.i(TAG, "ad started");
+                    Log.i(TAG, "ad started | countdown=" + adCountdown
+                            + "s | text=\"" + truncate(screenText, 200) + "\"");
                     state = State.IN_AD;
                 }
                 break;
 
             case IN_AD:
                 if (!adOn && videoOn) {
-                    Log.i(TAG, "ad finished, back to video content");
+                    Log.i(TAG, "ad finished, back to video content | text=\""
+                            + truncate(screenText, 200) + "\"");
                     state = State.WAITING_BUFFER;
                     scheduleSwipeIfNeeded();
                 }
@@ -105,7 +122,7 @@ public class AdSkipAccessibilityService extends AccessibilityService {
                     state = State.IN_AD;
                 } else if (!videoOn) {
                     // 页面变化中(比如出现剧集选择弹窗),保持等待
-                    Log.i(TAG, "page transitioning, keep waiting");
+                    Log.d(TAG, "page transitioning, keep waiting");
                 } else {
                     scheduleSwipeIfNeeded();
                 }
@@ -115,6 +132,12 @@ public class AdSkipAccessibilityService extends AccessibilityService {
                 // 手势派发中,等 onCompleted 回调重置
                 break;
         }
+    }
+
+    /** 截断屏幕文本,避免日志里出现几 KB 字符串。 */
+    private static String truncate(String s, int n) {
+        if (s == null) return "";
+        return s.length() > n ? s.substring(0, n) + "...(+" + (s.length() - n) + " chars)" : s;
     }
 
     private void scheduleSwipeIfNeeded() {

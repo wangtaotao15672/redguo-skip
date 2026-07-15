@@ -7,6 +7,7 @@ import android.os.Build;
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.util.DisplayMetrics;
+import android.util.Log;
 
 import androidx.annotation.RequiresApi;
 
@@ -16,6 +17,8 @@ import androidx.annotation.RequiresApi;
  * 仅在 API 24+ 可用(canPerformGestures = true),本项目 minSdk = 24 满足。
  */
 public final class SwipeHelper {
+
+    private static final String TAG = "RedGuoSkip";
 
     private static final HandlerThread THREAD = new HandlerThread("redguo-swipe");
     static { THREAD.start(); }
@@ -49,14 +52,19 @@ public final class SwipeHelper {
                 .addStroke(stroke)
                 .build();
 
+        Log.i(TAG, "swipe dispatched | screen=" + w + "x" + h
+                + " from y=" + (int) yStart + " to y=" + (int) yEnd);
+
         HANDLER.post(() ->
                 svc.dispatchGesture(gd, new AccessibilityService.GestureResultCallback() {
                     @Override
                     public void onCompleted(GestureDescription gestureDescription) {
+                        Log.i(TAG, "swipe completed");
                         if (onDone != null) onDone.run();
                     }
                     @Override
                     public void onCancelled(GestureDescription gestureDescription) {
+                        Log.w(TAG, "swipe cancelled by system");
                         if (onDone != null) onDone.run();
                     }
                 }, HANDLER));
